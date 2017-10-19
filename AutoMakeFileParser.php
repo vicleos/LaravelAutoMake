@@ -1,5 +1,7 @@
 <?php namespace App\Helpers;
 
+use Artisan;
+use Illuminate\Support\Str;
 /**
  * Class     AutoMakeFileParser
  *
@@ -40,7 +42,7 @@ class AutoMakeFileParser
 	 *
 	 * @return array
 	 */
-	public static function parse($raw)
+	public function parse($raw)
 	{
 		self::$parsed          = [];
 		list($headings, $data) = self::parseRawData($raw);
@@ -62,10 +64,151 @@ class AutoMakeFileParser
 		return self::$parsed;
 	}
 
+	/**
+	 * 根据解析结果生成对应的文件
+	 * @param $fileParseRst
+	 */
+	public function makeFiles($fileParseRst)
+	{
+		foreach ($fileParseRst as $item){
+			self::makeSingleFile($item['type'], $item['intro']);
+		}
+	}
+
+	public function makeSingleFile($type, $intro)
+	{
+		if($type == 'route'){
+			return self::makeRoute($intro);
+		}
+
+		if($type == ''){
+
+		}
+	}
+
 	/* ------------------------------------------------------------------------------------------------
 	 |  Other Functions
 	 | ------------------------------------------------------------------------------------------------
 	 */
+
+	/**
+	 * 生成路由及控制器
+	 * @todo 生成路由暂时忽略
+	 * @param $intro
+	 * @return bool
+	 */
+	private function makeRoute($intro)
+	{
+		$needMakeControllers = array_unique(array_column($intro, 'controller'));
+		foreach ($needMakeControllers as $filePathName){
+			$fileIsExists = $this->alreadyExists($filePathName, 'ctrl');
+			if(!$fileIsExists){
+				Artisan::call('make:controller', ['name' => $filePathName]);
+				echo $filePathName.' '.Artisan::output();
+			}else{
+				echo $filePathName.' 文件已存在<br/>';
+				return false;
+			}
+
+		}
+		return true;
+	}
+
+	/**
+	 * Get the destination class path.
+	 *
+	 * @param  string  $name
+	 * @return string
+	 */
+	protected function getPath($name)
+	{
+		// 如果存在 App\ 则去除 App\
+		$name = str_replace_first(app()->getNamespace(), '', $name);
+		return app('path').'/'.str_replace('\\', '/', $name).'.php';
+	}
+
+	/**
+	 * Determine if the class already exists.
+	 *
+	 * @param  string $rawName
+	 * @param $type
+	 * @return bool
+	 */
+	protected function alreadyExists($rawName, $type)
+	{
+		$name = $this->parseName($rawName, $type);
+		return file_exists($this->getPath($name));
+	}
+
+	/**
+	 * Parse the name and format according to the root namespace.
+	 *
+	 * @param  string $name
+	 * @param string $type
+	 * @return string
+	 */
+	protected function parseName($name, $type)
+	{
+		$rootNamespace = app()->getNamespace();
+
+		if (Str::startsWith($name, $rootNamespace)) {
+			return $name;
+		}
+
+		if (Str::contains($name, '/')) {
+			$name = str_replace('/', '\\', $name);
+		}
+
+		$rootNamespace = trim($rootNamespace, '\\');
+
+		switch ($type){
+			case 'ctrl':
+				$rootNamespace = $this->getControllersNamespace($rootNamespace);
+				break;
+			case 'res':
+				$rootNamespace = $this->getRepositoryNamespace($rootNamespace);
+				break;
+			case 'serv':
+				$rootNamespace = $this->getServiceNamespace($rootNamespace);
+				break;
+		}
+
+		return $this->parseName($rootNamespace.'\\'.$name, $type);
+	}
+
+	/**
+	 * Get the controllers namespace for the class.
+	 *
+	 * @param  string  $rootNamespace
+	 * @return string
+	 */
+	protected function getControllersNamespace($rootNamespace)
+	{
+		return $rootNamespace.'\Http\Controllers';
+	}
+
+	/**
+	 * Get the Repository namespace for the class.
+	 *
+	 * @param  string  $rootNamespace
+	 * @return string
+	 */
+	protected function getRepositoryNamespace($rootNamespace)
+	{
+		return $rootNamespace.'\Repository';
+	}
+
+	/**
+	 * Get the Service namespace for the class.
+	 *
+	 * @param  string  $rootNamespace
+	 * @return string
+	 */
+	protected function getServiceNamespace($rootNamespace)
+	{
+		return $rootNamespace.'\Service';
+	}
+
 	/**
 	 * Parse raw data.
 	 *
@@ -73,7 +216,7 @@ class AutoMakeFileParser
 	 *
 	 * @return array
 	 */
-	private static function parseRawData($raw)
+	private function parseRawData($raw)
 	{
 		// 匹配 - - 中的内容
 		$pattern = "/-(.*?)-/";
@@ -97,7 +240,7 @@ class AutoMakeFileParser
 	 * @param $introRaw
 	 * @return string
 	 */
-	private static function parseIntro($type, $introRaw)
+	private function parseIntro($type, $introRaw)
 	{
 		switch ($type){
 			case 'route':
@@ -121,7 +264,7 @@ class AutoMakeFileParser
 		}
 	}
 
-	private static function parseRouteIntro($introRaw)
+	private function parseRouteIntro($introRaw)
 	{
 		$pattern = "/(.*?),/";
 		preg_match_all($pattern, $introRaw, $routes);
@@ -162,7 +305,7 @@ class AutoMakeFileParser
 		return $parseRoutes;
 	}
 
-	private static function parseCtrlIntro($introRaw)
+	private function parseCtrlIntro($introRaw)
 	{
 		return [];
 	}
@@ -172,7 +315,7 @@ class AutoMakeFileParser
 	 * @param $introRaw
 	 * @return array
 	 */
-	private static function parseResIntro($introRaw)
+	private function parseResIntro($introRaw)
 	{
 		$rst = self::pregRaw(self::TYPE_EXPLODE, ',', $introRaw);
 		return array_filter($rst);
@@ -183,7 +326,7 @@ class AutoMakeFileParser
 	 * @param $introRaw
 	 * @return array
 	 */
-	private static function parseSevIntro($introRaw)
+	private function parseSevIntro($introRaw)
 	{
 		$rst = array_filter(self::pregRaw(self::TYPE_EXPLODE, ',', $introRaw));
 		return $rst;
@@ -194,7 +337,7 @@ class AutoMakeFileParser
 	 * @param $introRaw
 	 * @return array
 	 */
-	private static function parseTableIntro($introRaw)
+	private function parseTableIntro($introRaw)
 	{
 		$rst = [];
 		$baseParse = array_filter(self::pregRaw(self::TYPE_EXPLODE, '=>', $introRaw));
@@ -220,7 +363,7 @@ class AutoMakeFileParser
 	 * @param $raw
 	 * @return mixed
 	 */
-	private static function pregRaw($parseType = self::TYPE_PREG, $pattern, $raw)
+	private function pregRaw($parseType = self::TYPE_PREG, $pattern, $raw)
 	{
 		$parseRst = [];
 
@@ -240,7 +383,7 @@ class AutoMakeFileParser
 	 * @param $raw
 	 * @return mixed
 	 */
-	private static function clearTabs($raw)
+	private function clearTabs($raw)
 	{
 		$raw = preg_replace('/[\t\r\n\s]/', '', $raw);
 		return $raw;
@@ -251,7 +394,7 @@ class AutoMakeFileParser
 	 * @param $str
 	 * @return mixed
 	 */
-	private static function UnderlineToCamelCase($str)
+	private function UnderlineToCamelCase($str)
 	{
 		// 去除空格(单词首字母大写(将下划线替换为空格))
 		return preg_replace('# #', '', ucwords(str_replace('_', ' ', $str)));

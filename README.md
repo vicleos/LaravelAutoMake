@@ -1,0 +1,2 @@
+# LaravelAutoMake
+Laravel Scaffolding

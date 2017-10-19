@@ -40,7 +40,7 @@
     
 ## Contributors List 贡献者
 
-[Contributors Details](https://github.com/vicleos/LaravelAutoMake/RAP/graphs/contributors)
+[Contributors Details](https://github.com/vicleos/LaravelAutoMake/graphs/contributors)
 
 ## LAM的客户
 

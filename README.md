@@ -1,9 +1,7 @@
 # LaravelAutoMake 简称 LAM
 一款 `Laravel` 代码生成脚手架
 
-### What is LAM?
-
-RAP is a web tool that allows web applcation developers to rapidly define and document web APIs that are used in typical RESTful-API based web applications. RAP can also be used to generate API mock data and run API services to enable front-end developers in writing and testing their front-end code that makes consumpiont of the predefined web API loaded with mock data, hence reducing the dependency from the backend development work. Meanwhile, backend developers can implement their backend code according to the defintion of API on their own pace to meet the quality and timeline requirements. With RAP, you can really do more with less.
+### 什么是 LAM ?
 
 `LAM` 通过文本文档，按照固定的规则书写需要的文件及相应的表结构等文本，通过规则文本通过引导步骤逐步生成我们需要的基本文件及数据库，而我们可以避免更多重复劳动。
 

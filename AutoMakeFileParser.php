@@ -1,6 +1,8 @@
 <?php namespace App\Helpers;
 
 use Artisan;
+use EasyWeChat\Core\Exception;
+use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 /**
  * Class     AutoMakeFileParser
@@ -81,8 +83,8 @@ class AutoMakeFileParser
 			return self::makeRoute($intro);
 		}
 
-		if($type == ''){
-
+		if($type == 'srv'){
+			return self::makeService($intro);
 		}
 	}
 
@@ -99,9 +101,10 @@ class AutoMakeFileParser
 	 */
 	private function makeRoute($intro)
 	{
+		$type = 'ctrl';
 		$needMakeControllers = array_unique(array_column($intro, 'controller'));
 		foreach ($needMakeControllers as $filePathName){
-			$fileIsExists = $this->alreadyExists($filePathName, 'ctrl');
+			$fileIsExists = $this->alreadyExists($filePathName, $type);
 			if(!$fileIsExists){
 				Artisan::call('make:controller', ['name' => $filePathName]);
 				echo $filePathName.' '.Artisan::output();
@@ -112,6 +115,88 @@ class AutoMakeFileParser
 
 		}
 		return true;
+	}
+
+	/**
+	 * 生成服务类
+	 * @param $intro
+	 * @return bool
+	 */
+	private function makeService($intro)
+	{
+		$type = 'serv';
+		$needMakeControllers = $intro;
+		foreach ($needMakeControllers as $filePathName){
+			// 判断文件是否存在，其中包含根据服务名称获取要生成的文件路径
+			$fileIsExists = $this->alreadyExists($filePathName, $type);
+
+			if(!$fileIsExists){
+				// 获取 Service 生成模版
+				$stubPath = $this->getStub($type);
+				if (file_exists($stubPath)){
+					// 需要替换的 tag 及对应的值
+					$replaceArr = [
+						'DummyNamespace' => $this->getFileNamespace($filePathName),
+						'DummyClass' => class_basename($filePathName),
+						'DummyMore' => ''
+					];
+					// 替换模版中的名称及相关信息
+					$finalContents = $this->replaceStubTags($stubPath, $replaceArr);
+					// 根据服务名称获取需要生成的文件路径
+					$needMakeFilePath = $this->getNeedMakeFilePath($filePathName, $type);
+					// 输出文件
+					$this->put($needMakeFilePath, $finalContents);
+				}else{
+					echo $filePathName.' 模板不存在<br/>';
+					return false;
+				}
+			}else{
+				echo $filePathName.' 文件已存在<br/>';
+				return false;
+			}
+
+		}
+		return true;
+	}
+
+	/**
+	 * 替换模版中的标签
+	 * @param $filePath
+	 * @param $replaceArr
+	 * @return bool
+	 */
+	protected function replaceStubTags($filePath, $replaceArr)
+	{
+		if(empty($replaceArr)){
+			return false;
+		}
+		$fileContents = file_get_contents($filePath);
+		return str_replace(
+			array_keys($replaceArr), array_values($replaceArr), $fileContents
+		);
+	}
+
+	/**
+	 * 获取文件的命名空间
+	 * @param $rawFileName
+	 * @return string
+	 */
+	protected function getFileNamespace($rawFileName)
+	{
+		$rootNamespace = trim(app()->getNamespace(), '\\');
+		$serviceRootNamespace = $this->getServiceNamespace($rootNamespace);
+		return $serviceRootNamespace.'\\'.str_replace('/'.class_basename($rawFileName), '', $rawFileName);
+	}
+
+	/**
+	 * 根据类型和需要生成的模版类型获取模版路径
+	 * @param $type
+	 * @param string $stubType
+	 * @return string
+	 */
+	protected function getStub($type, $stubType = 'plain')
+	{
+		return __DIR__.'/stubs/'.$type.'.'.$stubType.'.stub';
 	}
 
 	/**
@@ -136,8 +221,18 @@ class AutoMakeFileParser
 	 */
 	protected function alreadyExists($rawName, $type)
 	{
-		$name = $this->parseName($rawName, $type);
-		return file_exists($this->getPath($name));
+		return file_exists($this->getNeedMakeFilePath($rawName, $type));
+	}
+
+	/**
+	 * 根据原始名称获取对应类型的生成路径
+	 * @param $rawName
+	 * @param $type
+	 * @return string
+	 */
+	protected function getNeedMakeFilePath($rawName, $type)
+	{
+		return $this->getPath($this->parseName($rawName, $type));
 	}
 
 	/**
@@ -398,6 +493,22 @@ class AutoMakeFileParser
 	{
 		// 去除空格(单词首字母大写(将下划线替换为空格))
 		return preg_replace('# #', '', ucwords(str_replace('_', ' ', $str)));
+	}
+
+	/**
+	 * Write the contents of a file.
+	 *
+	 * @param  string  $path
+	 * @param  string  $contents
+	 * @param  bool  $lock
+	 * @return int
+	 */
+	public function put($path, $contents, $lock = false)
+	{
+		if(file_exists($path)){
+			copy($path, $path.'_'.date('Y_m_d_H_i_s', time()));
+		}
+		return file_put_contents($path, $contents, $lock ? LOCK_EX : 0);
 	}
 
 }

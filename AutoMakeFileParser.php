@@ -47,7 +47,7 @@ class AutoMakeFileParser
 	public function parse($raw)
 	{
 		$parsed = [];
-		list($headings, $data) = self::parseRawData($raw);
+		list($headings, $data) = $this->parseRawData($raw);
 
 		if ( ! is_array($headings)) {
 			return $parsed;
@@ -57,7 +57,7 @@ class AutoMakeFileParser
 
 			$parsed[] = [
 				'type'  => $heading,
-				'intro'  => self::parseIntro($heading, $data[$key])
+				'intro'  => $this->parseIntro($heading, $data[$key])
 			];
 		};
 
@@ -85,18 +85,22 @@ class AutoMakeFileParser
 	{
 		$fileParseRst = $this->getParsed();
 		foreach ($fileParseRst as $item){
-			self::makeSingleFile($item['type'], $item['intro']);
+			$this->makeSingleFile($item['type'], $item['intro']);
 		}
 	}
 
 	public function makeSingleFile($type, $intro)
 	{
 		if($type == 'route'){
-			return self::makeRoute($intro);
+			return $this->makeRoute($intro);
 		}
 
 		if($type == 'srv'){
-			return self::makeService($intro);
+			return $this->makeService($intro);
+		}
+
+		if($type == 'srv'){
+			return $this->makeRepository($intro);
 		}
 	}
 
@@ -421,11 +425,6 @@ class AutoMakeFileParser
 		return $parseRoutes;
 	}
 
-	private function parseCtrlIntro($introRaw)
-	{
-		return [];
-	}
-
 	/**
 	 * 解析出 仓库 相关列表
 	 * @param $introRaw
@@ -433,8 +432,18 @@ class AutoMakeFileParser
 	 */
 	private function parseResIntro($introRaw)
 	{
-		$rst = self::pregRaw(self::TYPE_EXPLODE, ',', $introRaw);
+		$rst = $this->pregRaw(self::TYPE_EXPLODE, ',', $introRaw);
 		return array_filter($rst);
+	}
+
+	/**
+	 * 解析 控制器 相关列表
+	 * @param $introRaw
+	 * @return array
+	 */
+	private function parseCtrlIntro($introRaw)
+	{
+		return [];
 	}
 
 	/**
@@ -444,7 +453,7 @@ class AutoMakeFileParser
 	 */
 	private function parseSevIntro($introRaw)
 	{
-		$rst = array_filter(self::pregRaw(self::TYPE_EXPLODE, ',', $introRaw));
+		$rst = array_filter($this->pregRaw(self::TYPE_EXPLODE, ',', $introRaw));
 		return $rst;
 	}
 
@@ -456,13 +465,13 @@ class AutoMakeFileParser
 	private function parseTableIntro($introRaw)
 	{
 		$rst = [];
-		$baseParse = array_filter(self::pregRaw(self::TYPE_EXPLODE, '=>', $introRaw));
+		$baseParse = array_filter($this->pregRaw(self::TYPE_EXPLODE, '=>', $introRaw));
 		foreach ($baseParse as $row){
-			$parseRow = self::pregRaw(self::TYPE_EXPLODE, ':', $row);
+			$parseRow = $this->pregRaw(self::TYPE_EXPLODE, ':', $row);
 			$tableName = $parseRow[0];
-			$fields = array_filter(self::pregRaw(self::TYPE_EXPLODE, '->', $parseRow[1]));
+			$fields = array_filter($this->pregRaw(self::TYPE_EXPLODE, '->', $parseRow[1]));
 			//下划线命名法转驼峰命名法
-			$model = self::UnderlineToCamelCase($tableName);
+			$model = $this->UnderlineToCamelCase($tableName);
 			$rst[] = [
 				'name' => $tableName,
 				'fields' => $fields,
@@ -487,7 +496,7 @@ class AutoMakeFileParser
 			preg_match_all($pattern, $raw, $parseRst);
 			array_shift($parseRst);
 		}elseif($parseType == self::TYPE_EXPLODE){
-			$raw = self::clearTabs($raw);
+			$raw = $this->clearTabs($raw);
 			$parseRst = explode($pattern, $raw);
 		}
 

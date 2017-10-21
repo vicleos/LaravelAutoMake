@@ -21,7 +21,7 @@ class AutoMakeFileParser
 	 *
 	 * @var array
 	 */
-	protected static $parsed = [];
+	protected $parsed = [];
 
 	/**
 	 * 匹配类型为 explode
@@ -42,20 +42,20 @@ class AutoMakeFileParser
 	 *
 	 * @param  string  $raw
 	 *
-	 * @return array
+	 * @return mixed
 	 */
 	public function parse($raw)
 	{
-		self::$parsed          = [];
+		$parsed = [];
 		list($headings, $data) = self::parseRawData($raw);
 
 		if ( ! is_array($headings)) {
-			return self::$parsed;
+			return $parsed;
 		}
 
 		foreach ($headings as $key => $heading) {
 
-			self::$parsed[] = [
+			$parsed[] = [
 				'type'  => $heading,
 				'intro'  => self::parseIntro($heading, $data[$key])
 			];
@@ -63,15 +63,27 @@ class AutoMakeFileParser
 
 		unset($headings, $data);
 
-		return self::$parsed;
+		$this->setParsed($parsed);
+
+		return $this;
+	}
+
+	protected function setParsed($parsed)
+	{
+		$this->parsed = $parsed;
+	}
+
+	protected function getParsed()
+	{
+		return $this->parsed;
 	}
 
 	/**
 	 * 根据解析结果生成对应的文件
-	 * @param $fileParseRst
 	 */
-	public function makeFiles($fileParseRst)
+	public function makeFiles()
 	{
+		$fileParseRst = $this->getParsed();
 		foreach ($fileParseRst as $item){
 			self::makeSingleFile($item['type'], $item['intro']);
 		}
@@ -107,7 +119,7 @@ class AutoMakeFileParser
 			$fileIsExists = $this->alreadyExists($filePathName, $type);
 			if(!$fileIsExists){
 				Artisan::call('make:controller', ['name' => $filePathName]);
-				echo $filePathName.' '.Artisan::output();
+				echo $filePathName.' '.Artisan::output().'<br/>';
 			}else{
 				echo $filePathName.' 文件已存在<br/>';
 				return false;
@@ -154,6 +166,7 @@ class AutoMakeFileParser
 					}
 					// 输出文件
 					$this->put($needMakeFilePath, $finalContents);
+					echo $needMakeFilePath.' 执行完毕<br/>';
 				}else{
 					echo $filePathName.' 模板不存在<br/>';
 					return false;

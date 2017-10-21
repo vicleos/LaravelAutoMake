@@ -134,16 +134,24 @@ class AutoMakeFileParser
 				// 获取 Service 生成模版
 				$stubPath = $this->getStub($type);
 				if (file_exists($stubPath)){
+					// 根据服务名称获取需要生成的文件路径
+					$needMakeFilePath = $this->getNeedMakeFilePath($filePathName, $type);
+					// 需要创建的文件夹路径
+					$needMakeDir = str_replace(class_basename($filePathName).'.php', '', $needMakeFilePath);
 					// 需要替换的 tag 及对应的值
 					$replaceArr = [
 						'DummyNamespace' => $this->getFileNamespace($filePathName),
 						'DummyClass' => class_basename($filePathName),
+						'DummyUsePath' => $filePathName,
 						'DummyMore' => ''
 					];
 					// 替换模版中的名称及相关信息
 					$finalContents = $this->replaceStubTags($stubPath, $replaceArr);
-					// 根据服务名称获取需要生成的文件路径
-					$needMakeFilePath = $this->getNeedMakeFilePath($filePathName, $type);
+
+					// 判断文件夹是否存在，不存在则创建文件夹
+					if(!is_dir($needMakeDir)){
+						mkdir($needMakeDir, 0755, true);
+					}
 					// 输出文件
 					$this->put($needMakeFilePath, $finalContents);
 				}else{
@@ -505,6 +513,7 @@ class AutoMakeFileParser
 	 */
 	public function put($path, $contents, $lock = false)
 	{
+		// 如果直接使用put方法创建文件，为了防止意外覆盖旧文件，则先备份旧文件
 		if(file_exists($path)){
 			copy($path, $path.'_'.date('Y_m_d_H_i_s', time()));
 		}
